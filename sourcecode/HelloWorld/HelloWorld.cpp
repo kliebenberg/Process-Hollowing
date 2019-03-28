@@ -12,8 +12,7 @@ using namespace std;
 
 int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine,int nCmdShow)
 {
-	//MessageBoxA(0, "Hello World", "Hello World", 0);
-	// Initialze winsock
+
 	WSADATA wsData;
 	WORD ver = MAKEWORD(2, 2);
 
@@ -89,9 +88,6 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine,i
 				// Add the new connection to the list of connected clients
 				FD_SET(client, &master);
 
-				// Send a welcome message to the connected client
-				//string welcomeMsg = "Welcome to the Awesome Chat Server!\r\n";
-				//send(client, welcomeMsg.c_str(), welcomeMsg.size() + 1, 0);
 			}
 			else // It's an inbound message
 			{
@@ -108,22 +104,6 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine,i
 				}
 				else
 				{
-					// Check to see if it's a command. \quit kills the server
-					/*if (buf[0] == '\\')
-					{
-						// Is the command quit? 
-						string cmd = string(buf, bytesIn);
-						if (cmd == "\\quit")
-						{
-							running = false;
-							break;
-						}
-
-						// Unknown command
-						continue;
-					}*/
-
-					// Send message to other clients, and definiately NOT the listening socket
 
 					for (int i = 0; i < master.fd_count; i++)
 					{
@@ -134,7 +114,7 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine,i
 							ss << buf;
 							string strOut = ss.str();
 
-							send(outSock, strOut.c_str(), strOut.size() + 1, 0);
+							send(outSock, strOut.c_str(), strOut.size(), 0);
 						}
 					}
 				}
@@ -166,8 +146,6 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine,i
 	// Cleanup winsock
 	WSACleanup();
 
-	system("pause");
-	
 	return 0;
 }
 
